@@ -1,5 +1,7 @@
 const express = require('express');
 const server = express();
+const postRouter = require('./posts/postRouter');
+
 
 //Databases
 const userDb = require('./users/userDb.js');
@@ -10,6 +12,7 @@ server.use(logger);
 server.use(express.json());
 
 // server.use(validateUserId);
+server.use('/posts/', postRouter);
 
 server.get('/', (req, res) => {
   res.send(`<h2>Let's write some middleware!</h2>`);
@@ -109,45 +112,7 @@ server.delete('/users/:id', (req, res) => {
       });
 });
 
-//R - GET list of posts for a user.
-server.get('/posts/:id', validateUserId, (req, res) => {
-  userDb.getUserPosts(req.params.id)
-      .then(db => {
-          res.status(200).json(db);
-      })
-      .catch(error => {
-          console.log(error);
-          res.status(500).json({
-              error: "The users information could not be retrieved.",
-          })
-      })
-});
 
-
-//C - Post new post for a user.
-// requires text: and user_id: 
-server.post('/posts/:id', validatePost, (req, res) => {
-  const postInfo = {...req.body, user_id: req.params.id } ;
-  console.log('req', req.body);
-  if (postInfo.text) {
-      postDb.insert(postInfo)
-      .then(db => {
-          res.status(201).json(db);
-      })
-      .catch(error => {
-          // log error to database
-          console.log(error);
-          res.status(500).json({
-              error: "There was an error while saving the post to the database",
-          });
-      });
-  } else {
-      console.log('object error');
-          res.status(400).json({
-              errorMessage: "Please provide text for post.",
-          });
-  }
-});
 
 
 
@@ -203,26 +168,7 @@ function validateUser(req, res, next){
   }
 
 
-// validatePost validates the body on a request to create a new post
-// if the request body is missing, cancel the request and respond with status 400 and { message: "missing post data" }
-// if the request body is missing the required text field, cancel the request and respond with status 400 and { message: "missing required text field" }
 
-function validatePost(req, res, next){
-  const postInfo = req.body;
-
-  switch (postInfo.text) {
-    case undefined:
-      res.status(400).json({message: "missing post data!!!"});
-      break;
-
-    case "":
-      res.status(400).json({message: "text field is empty!!!"});
-      break;
-
-    default:
-      next();
-  };
-};
 
 
 
