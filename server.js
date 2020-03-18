@@ -1,21 +1,15 @@
 const express = require('express');
-// const morgan = require('morgan');
+const server = express();
 
 //Databases
 const userDb = require('./users/userDb.js');
 const postDb = require('./posts/postDb.js')
 
-
-const server = express();
-
-
-// server.use(morgan('combined'))
+//Middleware
 server.use(logger);
 server.use(express.json());
 
 // server.use(validateUserId);
-
-
 
 server.get('/', (req, res) => {
   res.send(`<h2>Let's write some middleware!</h2>`);
@@ -27,7 +21,7 @@ server.get('/', (req, res) => {
 
 //CRUD on users
 // C - POST new user
-server.post('/users', (req, res) => {
+server.post('/users', validateUser, (req, res) => {
   const userInfo = req.body;
   console.log('req', req.body);
   if (userInfo.name) {
@@ -70,14 +64,14 @@ server.get('/users', (req, res) => {
 //the second is an object with the changes to apply. It returns the count of updated records. 
 //If the count is 1 it means the record was updated correctly.
 
-server.put('/users/:id', (req, res) => {
+server.put('/users/:id', validateUserId, (req, res) => {
   if (req.body.name) {
   userDb.update(req.params.id, req.body)
       .then(db => {
           if (db) {
               res.status(200).json(db);
           } else {
-              res.status(404).json({ message: "The post with the specified ID does not exist." });
+              res.status(404).json({ message: "The post with the specified ID does not exist!!!!!!." });
           }
       })
       .catch(error => {
@@ -116,7 +110,7 @@ server.delete('/users/:id', (req, res) => {
 });
 
 //R - GET list of posts for a user.
-server.get('/posts/:id', (req, res) => {
+server.get('/posts/:id', validateUserId, (req, res) => {
   userDb.getUserPosts(req.params.id)
       .then(db => {
           res.status(200).json(db);
@@ -132,7 +126,7 @@ server.get('/posts/:id', (req, res) => {
 
 //C - Post new post for a user.
 // requires text: and user_id: 
-server.post('/posts/:id', (req, res) => {
+server.post('/posts/:id', validatePost, (req, res) => {
   const postInfo = {...req.body, user_id: req.params.id } ;
   console.log('req', req.body);
   if (postInfo.text) {
@@ -165,11 +159,72 @@ function logger(req, res, next) {
   next();
 }
 
-
-
 // validateUserId validates the user id on every request that expects a user id parameter
 // if the id parameter is valid, store that user object as req.user
 // if the id parameter does not match any user id in the database, cancel the request and respond with status 400 and { message: "invalid user id" }
+
+//request which requires user_id param: all Posts. example: 
+
+function validateUserId(req, res, next){
+  const user_id = req.params.id;
+  
+  userDb.getById(user_id)
+    .then(id => {
+      if (id) {
+        next();
+      } else {
+        res.status(404).json({message: 'id not found '});
+      }
+    })
+    .catch(err => {
+      res.status(500).json({message: 'Error retrieving id'})
+    })
+};
+
+// validateUser()
+// validateUser validates the body on a request to create a new user
+// if the request body is missing, cancel the request and respond with status 400 and { message: "missing user data" }
+// if the request body is missing the required name field, cancel the request and respond with status 400 and { message: "missing required name field" }
+function validateUser(req, res, next){
+  const userInfo = req.body;
+
+  switch (userInfo.name) {
+    case undefined:
+      res.status(400).json({message: "missing required name field!!!!"});
+      break;
+
+    case "":
+      res.status(400).json({message: "name field is empty!"});
+      break;
+
+    default:
+      next();
+    }
+  }
+
+
+// validatePost validates the body on a request to create a new post
+// if the request body is missing, cancel the request and respond with status 400 and { message: "missing post data" }
+// if the request body is missing the required text field, cancel the request and respond with status 400 and { message: "missing required text field" }
+
+function validatePost(req, res, next){
+  const postInfo = req.body;
+
+  switch (postInfo.text) {
+    case undefined:
+      res.status(400).json({message: "missing post data!!!"});
+      break;
+
+    case "":
+      res.status(400).json({message: "text field is empty!!!"});
+      break;
+
+    default:
+      next();
+  };
+};
+
+
 
 // var d = new Date();
 // var n = d.getSeconds();
@@ -180,42 +235,6 @@ function logger(req, res, next) {
 //   console.log('not ok', n);
 //   next();
 // };
-
-
-// validateUserId validates the user id on every request that expects a user id parameter
-// if the id parameter is valid, store that user object as req.user
-// if the id parameter does not match any user id in the database, cancel the request and respond with status 400 and { message: "invalid user id" }
-
-//request which requires user_id param: all Posts. example: 
-
-
-function validateUserId(req, res, next){
-  const {user_id} = req.user_id;
-  
-  Hubs.findById(user_id)
-    .then(hub => {
-      if (hub) {
-        res.status(200).json(hub);
-      } else {
-        res.status(404).json({message: 'hub id not found '});
-      }
-    })
-    .catch(err => {
-      res.status(500).json({message: 'Error retrieving hub'})
-    })
-};
-
-
-// // Write a middleware function called requiredBody. If req.body is not defined and is an empty object, it should cancel the request and send back a status 400 with the message "Please include request body".
-// function requiredBody(req, res, next){
-//   if (req.body && req.body !== "") {
-
-//   } else {
-//     res.status(400).json({message: 'Please include request body'})
-//   }
-// }
-
-
 
 
 
